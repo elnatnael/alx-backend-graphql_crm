@@ -27,7 +27,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 GRAPHENE = {
-    "SCHEMA": "graphql_crm.schema.schema"
+    "SCHEMA": "alx_backend_graphql.schema.schema"
 }
 
 
@@ -55,7 +55,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'graphql_crm.urls'
+ROOT_URLCONF = 'alx_backend_graphql_crm.urls'
 
 TEMPLATES = [
     {
@@ -73,7 +73,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'graphql_crm.wsgi.application'
+WSGI_APPLICATION = 'alx_backend_graphql_crm.wsgi.application'
 
 
 # Database
