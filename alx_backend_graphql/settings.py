@@ -7,7 +7,7 @@ DEBUG = True
 ALLOWED_HOSTS = []
 
 GRAPHENE = {
-    "SCHEMA": "alx_backend_graphql.schema.schema"  # <-- project root name here
+    'SCHEMA': 'crm.schema.schema'  # path to your schema
 }
 
 INSTALLED_APPS = [
@@ -17,6 +17,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_filters',
     'graphene_django',
     'crm',
 ]

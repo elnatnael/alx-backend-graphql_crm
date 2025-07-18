@@ -2,32 +2,75 @@ import re
 from decimal import Decimal
 from django.db import transaction
 import graphene
+from graphene import relay
 from graphene_django import DjangoObjectType
-from .models import Customer, Product, Order
-from django.utils.timezone import now
+from graphene_django.filter import DjangoFilterConnectionField
 from graphql import GraphQLError
+from django.utils.timezone import now
+import django_filters
+
+from .models import Customer, Product, Order
 
 
-# DjangoObjectTypes
+# --- Filters ---
+
+class CustomerFilter(django_filters.FilterSet):
+    name = django_filters.CharFilter(field_name='name', lookup_expr='icontains')
+    email = django_filters.CharFilter(field_name='email', lookup_expr='icontains')
+    phone_pattern = django_filters.CharFilter(method='filter_phone_pattern')
+
+    class Meta:
+        model = Customer
+        fields = ['name', 'email', 'phone_pattern']
+
+    def filter_phone_pattern(self, queryset, name, value):
+        return queryset.filter(phone__startswith=value)
+
+
+class ProductFilter(django_filters.FilterSet):
+    name = django_filters.CharFilter(field_name='name', lookup_expr='icontains')
+    price_gte = django_filters.NumberFilter(field_name='price', lookup_expr='gte')
+    price_lte = django_filters.NumberFilter(field_name='price', lookup_expr='lte')
+    stock_gte = django_filters.NumberFilter(field_name='stock', lookup_expr='gte')
+    stock_lte = django_filters.NumberFilter(field_name='stock', lookup_expr='lte')
+
+    class Meta:
+        model = Product
+        fields = ['name', 'price_gte', 'price_lte', 'stock_gte', 'stock_lte']
+
+
+# --- Graphene Types ---
+
 class CustomerType(DjangoObjectType):
     class Meta:
         model = Customer
         fields = ("id", "name", "email", "phone")
+        interfaces = (relay.Node,)
+        filterset_class = CustomerFilter
 
 
 class ProductType(DjangoObjectType):
     class Meta:
         model = Product
         fields = ("id", "name", "price", "stock")
+        interfaces = (relay.Node,)
+        filterset_class = ProductFilter
 
 
 class OrderType(DjangoObjectType):
     class Meta:
         model = Order
-        fields = ("id", "customer", "products", "total_amount", "order_date")
+        interfaces = (relay.Node,)
+        fields = '__all__'
 
 
-# Input Types
+class OrderConnection(relay.Connection):
+    class Meta:
+        node = OrderType
+
+
+# --- Input Types for mutations ---
+
 class CustomerInput(graphene.InputObjectType):
     name = graphene.String(required=True)
     email = graphene.String(required=True)
@@ -46,7 +89,8 @@ class CreateOrderInput(graphene.InputObjectType):
     order_date = graphene.DateTime(required=False)
 
 
-# Validators
+# --- Validators ---
+
 def validate_phone(phone):
     if phone is None:
         return True
@@ -58,7 +102,8 @@ def validate_email_unique(email):
     return not Customer.objects.filter(email=email).exists()
 
 
-# Mutations
+# --- Mutations ---
+
 class CreateCustomer(graphene.Mutation):
     class Arguments:
         input = CustomerInput(required=True)
@@ -67,7 +112,6 @@ class CreateCustomer(graphene.Mutation):
     message = graphene.String()
 
     def mutate(self, info, input):
-        # Validation
         if not validate_email_unique(input.email):
             raise GraphQLError("Email already exists.")
 
@@ -96,7 +140,6 @@ class BulkCreateCustomers(graphene.Mutation):
         errors = []
 
         for idx, customer_input in enumerate(input):
-            # Validate email uniqueness for each input
             if not validate_email_unique(customer_input.email):
                 errors.append(f"Customer at index {idx} has duplicate email: {customer_input.email}")
                 continue
@@ -175,7 +218,50 @@ class CreateOrder(graphene.Mutation):
         return CreateOrder(order=order)
 
 
-# Mutation class
+# --- Filter Input for Orders ---
+
+class OrderFilterInput(graphene.InputObjectType):
+    customerName = graphene.String()
+    productName = graphene.String()
+    totalAmountGte = graphene.Float()
+    totalAmountLte = graphene.Float()
+    orderDateGte = graphene.Date()
+    orderDateLte = graphene.Date()
+
+
+# --- Query ---
+
+class Query(graphene.ObjectType):
+    all_customers = DjangoFilterConnectionField(CustomerType, filterset_class=CustomerFilter)
+    all_products = DjangoFilterConnectionField(ProductType, filterset_class=ProductFilter)
+    all_orders = relay.ConnectionField(
+        OrderConnection,
+        filter=graphene.Argument(OrderFilterInput),
+    )
+   
+
+
+    def resolve_all_orders(root, info, **kwargs):
+        filter = kwargs.get("filter")
+        qs = Order.objects.all()
+        if filter:
+            if filter.customerName:
+                qs = qs.filter(customer__name__icontains=filter.customerName)
+            if filter.productName:
+                qs = qs.filter(products__name__icontains=filter.productName).distinct()
+            if filter.totalAmountGte is not None:
+                qs = qs.filter(total_amount__gte=filter.totalAmountGte)
+            if filter.totalAmountLte is not None:
+                qs = qs.filter(total_amount__lte=filter.totalAmountLte)
+            if filter.orderDateGte:
+                qs = qs.filter(order_date__gte=filter.orderDateGte)
+            if filter.orderDateLte:
+                qs = qs.filter(order_date__lte=filter.orderDateLte)
+        return qs
+
+
+# --- Mutation ---
+
 class Mutation(graphene.ObjectType):
     create_customer = CreateCustomer.Field()
     bulk_create_customers = BulkCreateCustomers.Field()
@@ -183,21 +269,6 @@ class Mutation(graphene.ObjectType):
     create_order = CreateOrder.Field()
 
 
-# Query stub (you should define your actual queries here)
-class Query(graphene.ObjectType):
-    customers = graphene.List(CustomerType)
-    products = graphene.List(ProductType)
-    orders = graphene.List(OrderType)
+# --- Schema ---
 
-    def resolve_customers(self, info):
-        return Customer.objects.all()
-
-    def resolve_products(self, info):
-        return Product.objects.all()
-
-    def resolve_orders(self, info):
-        return Order.objects.all()
-
-
-# Finally, create the schema
 schema = graphene.Schema(query=Query, mutation=Mutation)
