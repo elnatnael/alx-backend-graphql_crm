@@ -1,12 +1,11 @@
 #!/bin/bash
 # Script to clean up inactive customers from CRM system
 
-# Get the directory where this script is located
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+# Change to project directory
+cd /path/to/alx-backend-graphql_crm
 
 # Execute Django command to delete inactive customers
-OUTPUT=$(cd "$PROJECT_DIR" && python manage.py shell -c "
+OUTPUT=$(python manage.py shell -c "
 from django.utils import timezone
 from datetime import timedelta
 from customers.models import Customer
@@ -18,7 +17,8 @@ inactive_customers = Customer.objects.filter(
     date_joined__lt=cutoff_date
 ).distinct()
 count = inactive_customers.count()
-inactive_customers.delete()
+if count > 0:
+    inactive_customers.delete()
 print(count)
 ")
 
