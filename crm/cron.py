@@ -1,33 +1,45 @@
-#!/usr/bin/env python3
-"""
-CRM heartbeat monitoring with GraphQL check
-"""
-
 from datetime import datetime
 from gql import gql, Client
 from gql.transport.requests import RequestsHTTPTransport
-import os
 
-def log_crm_heartbeat():
-    """Log CRM heartbeat and optionally check GraphQL endpoint"""
-    timestamp = datetime.now().strftime("%d/%m/%Y-%H:%M:%S")
-    log_message = f"{timestamp} CRM is alive"
+def update_low_stock():
+    """Update low-stock products via GraphQL mutation"""
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
-    # Optional GraphQL endpoint check
     try:
         transport = RequestsHTTPTransport(
             url="http://localhost:8000/graphql",
             verify=True,
-            retries=1,
+            retries=3,
         )
         client = Client(transport=transport, fetch_schema_from_transport=True)
-        query = gql("query { hello }")
-        result = client.execute(query)
-        if result.get('hello'):
-            log_message += " - GraphQL endpoint responsive"
+        
+        mutation = gql("""
+            mutation {
+                updateLowStockProducts {
+                    products {
+                        id
+                        name
+                        stock
+                    }
+                    message
+                }
+            }
+        """)
+        
+        result = client.execute(mutation)
+        updates = result.get('updateLowStockProducts', {})
+        
+        log_entry = f"[{timestamp}] {updates.get('message', 'No updates')}\n"
+        
+        for product in updates.get('products', []):
+            log_entry += (f"  - Updated {product['name']} "
+                        f"(New stock: {product['stock']})\n")
+        
+        with open("/tmp/low_stock_updates_log.txt", "a") as log_file:
+            log_file.write(log_entry)
+            
     except Exception as e:
-        log_message += f" - GraphQL check failed: {str(e)}"
-    
-    # Append to log file
-    with open("/tmp/crm_heartbeat_log.txt", "a") as log_file:
-        log_file.write(log_message + "\n")
+        error_msg = f"[{timestamp}] Error: {str(e)}\n"
+        with open("/tmp/low_stock_updates_log.txt", "a") as log_file:
+            log_file.write(error_msg)

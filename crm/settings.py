@@ -112,9 +112,9 @@ GRAPHENE = {
 
 # django-crontab Configuration
 CRONJOBS = [
-    ('*/5 * * * *', 'crm.cron.log_crm_heartbeat'),
+    ('0 */12 * * *', 'crm.cron.update_low_stock'),
+    ('*/5 * * * *', 'crm.cron.log_crm_heartbeat'),  # Keep existing heartbeat
 ]
-
 # Logging Configuration
 LOGGING = {
     'version': 1,
