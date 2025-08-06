@@ -3,33 +3,33 @@ from graphene_django import DjangoObjectType
 from crm.models import Product
 from products.models import Product
 
+
 class ProductType(DjangoObjectType):
     class Meta:
         model = Product
-        fields = "__all__"
+        fields = ("id", "name", "stock")  # Only necessary fields
 
 class UpdateLowStockProducts(graphene.Mutation):
     class Arguments:
-        pass  # No arguments needed for this mutation
+        pass
 
     products = graphene.List(ProductType)
     message = graphene.String()
 
     @classmethod
     def mutate(cls, root, info):
-        # Get products with stock < 10
-        low_stock_products = Product.objects.filter(stock__lt=10)
-        updated_products = []
+        # Get and update low stock products
+        low_stock = Product.objects.filter(stock__lt=10)
+        updated = []
         
-        # Update each product's stock
-        for product in low_stock_products:
-            product.stock += 10
+        for product in low_stock:
+            product.stock += 10  # Increment stock by 10
             product.save()
-            updated_products.append(product)
+            updated.append(product)
         
-        return UpdateLowStockProducts(
-            products=updated_products,
-            message=f"Updated {len(updated_products)} low-stock products"
+        return cls(
+            products=updated,
+            message=f"Restocked {len(updated)} products"
         )
 
 class Mutation(graphene.ObjectType):

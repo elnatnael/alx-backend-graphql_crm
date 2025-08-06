@@ -3,7 +3,7 @@ from gql import gql, Client
 from gql.transport.requests import RequestsHTTPTransport
 
 def update_low_stock():
-    """Update low-stock products via GraphQL mutation"""
+    """Execute low stock update mutation and log results"""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
     try:
@@ -28,18 +28,17 @@ def update_low_stock():
         """)
         
         result = client.execute(mutation)
-        updates = result.get('updateLowStockProducts', {})
+        data = result.get('updateLowStockProducts', {})
         
-        log_entry = f"[{timestamp}] {updates.get('message', 'No updates')}\n"
+        # Format log entry
+        log_entry = f"[{timestamp}] {data.get('message', '')}\n"
+        for product in data.get('products', []):
+            log_entry += f"  - {product['name']} (Stock: {product['stock']})\n"
         
-        for product in updates.get('products', []):
-            log_entry += (f"  - Updated {product['name']} "
-                        f"(New stock: {product['stock']})\n")
-        
-        with open("/tmp/low_stock_updates_log.txt", "a") as log_file:
-            log_file.write(log_entry)
+        with open("/tmp/low_stock_updates_log.txt", "a") as f:
+            f.write(log_entry)
             
     except Exception as e:
         error_msg = f"[{timestamp}] Error: {str(e)}\n"
-        with open("/tmp/low_stock_updates_log.txt", "a") as log_file:
-            log_file.write(error_msg)
+        with open("/tmp/low_stock_updates_log.txt", "a") as f:
+            f.write(error_msg)
