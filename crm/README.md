@@ -1,11 +1,13 @@
 # CRM Celery Report System
 
 ## Prerequisites
-- Redis server
 - Python 3.8+
+- Redis server
 - Django 3.2+
 
 ## Installation
-1. Install dependencies:
+
+1. Clone the repository:
 ```bash
-pip install -r requirements.txt
+git clone <repository-url>
+cd alx-backend-graphql_crm
