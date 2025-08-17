@@ -26,27 +26,27 @@ class OrderType(DjangoObjectType):
 
 # Input Types
 class CustomerInput(InputObjectType):
-    name = String(required=True)
-    email = String(required=True)
-    phone = String()
+    name = graphene.String(required=True)
+    email = graphene.String(required=True)
+    phone = graphene.String()
 
 class ProductInput(InputObjectType):
-    name = String(required=True)
-    price = Decimal(required=True)
-    stock = Int(default_value=0)
+    name = graphene.String(required=True)
+    price = graphene.Decimal(required=True)
+    stock = graphene.Int(default_value=0)
 
 class OrderInput(InputObjectType):
-    customer_id = ID(required=True)
-    product_ids = List(ID, required=True)
-    order_date = DateTime()
+    customer_id = graphene.ID(required=True)
+    product_ids = graphene.List(graphene.ID, required=True)
+    order_date = graphene.DateTime()
 
 # Mutations
-class CreateCustomer(Mutation):
+class CreateCustomer(graphene.Mutation):
     class Arguments:
         input = CustomerInput(required=True)
     
-    customer = Field(CustomerType)
-    message = String()
+    customer = graphene.Field(CustomerType)
+    message = graphene.String()
     
     @staticmethod
     def mutate(root, info, input):
@@ -72,12 +72,12 @@ class CreateCustomer(Mutation):
         except Exception as e:
             return CreateCustomer(customer=None, message=str(e))
 
-class BulkCreateCustomers(Mutation):
+class BulkCreateCustomers(graphene.Mutation):
     class Arguments:
-        inputs = List(CustomerInput, required=True)
+        inputs = graphene.List(CustomerInput, required=True)
     
-    customers = List(CustomerType)
-    errors = List(String)
+    customers = graphene.List(CustomerType)
+    errors = graphene.List(graphene.String)
     
     @staticmethod
     @transaction.atomic
@@ -110,11 +110,11 @@ class BulkCreateCustomers(Mutation):
         
         return BulkCreateCustomers(customers=customers, errors=errors)
 
-class CreateProduct(Mutation):
+class CreateProduct(graphene.Mutation):
     class Arguments:
         input = ProductInput(required=True)
     
-    product = Field(ProductType)
+    product = graphene.Field(ProductType)
     
     @staticmethod
     def mutate(root, info, input):
@@ -135,11 +135,11 @@ class CreateProduct(Mutation):
         except Exception as e:
             return CreateProduct(product=None, message=str(e))
 
-class CreateOrder(Mutation):
+class CreateOrder(graphene.Mutation):
     class Arguments:
         input = OrderInput(required=True)
     
-    order = Field(OrderType)
+    order = graphene.Field(OrderType)
     
     @staticmethod
     @transaction.atomic
